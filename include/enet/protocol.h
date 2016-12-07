@@ -9,8 +9,8 @@
 
 enum
 {
-   ENET_PROTOCOL_MINIMUM_MTU             = 576,
-   ENET_PROTOCOL_MAXIMUM_MTU             = 4096,
+   ENET_PROTOCOL_MINIMUM_MTU             = 576, // 20, // 576,
+   ENET_PROTOCOL_MAXIMUM_MTU             = 4096, // 140, // 4096,
    ENET_PROTOCOL_MAXIMUM_PACKET_COMMANDS = 32,
    ENET_PROTOCOL_MINIMUM_WINDOW_SIZE     = 4096,
    ENET_PROTOCOL_MAXIMUM_WINDOW_SIZE     = 65536,
@@ -66,6 +66,7 @@ typedef struct _ENetProtocolHeader
 {
    enet_uint16 peerID;
    enet_uint16 sentTime;
+
 } ENET_PACKED ENetProtocolHeader;
 
 typedef struct _ENetProtocolCommandHeader

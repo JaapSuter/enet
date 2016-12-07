@@ -62,6 +62,11 @@ enet_time_set (enet_uint32 newTimeBase)
 int
 enet_address_set_host (ENetAddress * address, const char * name)
 {
+    if (address && name && enet_is_hunter_host(name)) {
+        address->host = ENET_HOST_HUNTER_SERVER;
+        return 0;
+    }
+
     struct hostent * hostEntry;
 
     hostEntry = gethostbyname (name);
@@ -121,6 +126,7 @@ enet_address_get_host (const ENetAddress * address, char * name, size_t nameLeng
 int
 enet_socket_bind (ENetSocket socket, const ENetAddress * address)
 {
+    ENET_HUNTER_SOCKET_INSTEAD_RETURN(0);
     struct sockaddr_in sin;
 
     memset (& sin, 0, sizeof (struct sockaddr_in));
@@ -142,10 +148,15 @@ enet_socket_bind (ENetSocket socket, const ENetAddress * address)
                  (struct sockaddr *) & sin,
                  sizeof (struct sockaddr_in)) == SOCKET_ERROR ? -1 : 0;
 }
-
 int
 enet_socket_get_address (ENetSocket socket, ENetAddress * address)
 {
+    if (enet_is_hunter_socket(socket)) {
+        address->host = socket == ENET_SOCKET_HUNTER_SERVER ? ENET_HOST_HUNTER_SERVER : ENET_HOST_HUNTER_CLIENT;
+        address->port = ENET_PORT_HUNTER;
+        return 0;
+    }
+
     struct sockaddr_in sin;
     int sinLength = sizeof (struct sockaddr_in);
 
@@ -161,18 +172,25 @@ enet_socket_get_address (ENetSocket socket, ENetAddress * address)
 int
 enet_socket_listen (ENetSocket socket, int backlog)
 {
+    ENET_HUNTER_SOCKET_INSTEAD_RETURN(0);
     return listen (socket, backlog < 0 ? SOMAXCONN : backlog) == SOCKET_ERROR ? -1 : 0;
 }
 
 ENetSocket
 enet_socket_create (ENetSocketType type)
 {
+    if (type == ENET_SOCKET_TYPE_HUNTER_SERVER)
+        return ENET_SOCKET_HUNTER_SERVER;
+    else if (type == ENET_SOCKET_TYPE_HUNTER_CLIENT)
+        return ENET_SOCKET_HUNTER_CLIENT;
     return socket (PF_INET, type == ENET_SOCKET_TYPE_DATAGRAM ? SOCK_DGRAM : SOCK_STREAM, 0);
 }
 
 int
 enet_socket_set_option (ENetSocket socket, ENetSocketOption option, int value)
 {
+    ENET_HUNTER_SOCKET_INSTEAD_RETURN(0);
+
     int result = SOCKET_ERROR;
     switch (option)
     {
@@ -220,6 +238,7 @@ enet_socket_set_option (ENetSocket socket, ENetSocketOption option, int value)
 int
 enet_socket_get_option (ENetSocket socket, ENetSocketOption option, int * value)
 {
+    ENET_HUNTER_SOCKET_INSTEAD_RETURN(-1);
     int result = SOCKET_ERROR, len;
     switch (option)
     {
@@ -237,6 +256,8 @@ enet_socket_get_option (ENetSocket socket, ENetSocketOption option, int * value)
 int
 enet_socket_connect (ENetSocket socket, const ENetAddress * address)
 {
+    ENET_HUNTER_SOCKET_INSTEAD_RETURN(0);
+
     struct sockaddr_in sin;
     int result;
 
@@ -256,6 +277,8 @@ enet_socket_connect (ENetSocket socket, const ENetAddress * address)
 ENetSocket
 enet_socket_accept (ENetSocket socket, ENetAddress * address)
 {
+    ENET_HUNTER_SOCKET_INSTEAD_RETURN(enet_hunter_socket_accept(address));
+
     SOCKET result;
     struct sockaddr_in sin;
     int sinLength = sizeof (struct sockaddr_in);
@@ -279,12 +302,14 @@ enet_socket_accept (ENetSocket socket, ENetAddress * address)
 int
 enet_socket_shutdown (ENetSocket socket, ENetSocketShutdown how)
 {
-    return shutdown (socket, (int) how) == SOCKET_ERROR ? -1 : 0;
+    ENET_HUNTER_SOCKET_INSTEAD_RETURN(0);
+    return shutdown(socket, (int)how) == SOCKET_ERROR ? -1 : 0;
 }
 
 void
 enet_socket_destroy (ENetSocket socket)
 {
+    ENET_HUNTER_SOCKET_INSTEAD_RETURN();
     if (socket != INVALID_SOCKET)
       closesocket (socket);
 }
@@ -295,6 +320,7 @@ enet_socket_send (ENetSocket socket,
                   const ENetBuffer * buffers,
                   size_t bufferCount)
 {
+    ENET_HUNTER_SOCKET_INSTEAD_RETURN(enet_hunter_socket_send(socket, buffers, bufferCount));
     struct sockaddr_in sin;
     DWORD sentLength;
 
@@ -307,6 +333,7 @@ enet_socket_send (ENetSocket socket,
         sin.sin_addr.s_addr = address -> host;
     }
 
+    printf("-------------- WSASendTo buffer count: %d\n", (int)bufferCount);
     if (WSASendTo (socket, 
                    (LPWSABUF) buffers,
                    (DWORD) bufferCount,
@@ -332,11 +359,13 @@ enet_socket_receive (ENetSocket socket,
                      ENetBuffer * buffers,
                      size_t bufferCount)
 {
+    ENET_HUNTER_SOCKET_INSTEAD_RETURN(enet_hunter_socket_receive(socket, address, buffers, bufferCount));
     INT sinLength = sizeof (struct sockaddr_in);
     DWORD flags = 0,
           recvLength;
     struct sockaddr_in sin;
 
+    printf("-------------- WSARecvFrom buffer count: %d\n", (int)bufferCount);
     if (WSARecvFrom (socket,
                      (LPWSABUF) buffers,
                      (DWORD) bufferCount,
@@ -383,6 +412,7 @@ enet_socketset_select (ENetSocket maxSocket, ENetSocketSet * readSet, ENetSocket
 int
 enet_socket_wait (ENetSocket socket, enet_uint32 * condition, enet_uint32 timeout)
 {
+    ENET_HUNTER_SOCKET_INSTEAD_RETURN(enet_hunter_socket_wait(socket, condition, timeout));
     fd_set readSet, writeSet;
     struct timeval timeVal;
     int selectCount;

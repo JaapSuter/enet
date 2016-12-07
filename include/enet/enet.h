@@ -41,7 +41,10 @@ struct _ENetPacket;
 typedef enum _ENetSocketType
 {
    ENET_SOCKET_TYPE_STREAM   = 1,
-   ENET_SOCKET_TYPE_DATAGRAM = 2
+   ENET_SOCKET_TYPE_DATAGRAM = 2,
+   ENET_SOCKET_TYPE_HUNTER_SERVER = 3,
+   ENET_SOCKET_TYPE_HUNTER_CLIENT = 4,
+
 } ENetSocketType;
 
 typedef enum _ENetSocketWait
@@ -90,6 +93,7 @@ typedef struct _ENetAddress
 {
    enet_uint32 host;
    enet_uint16 port;
+   uintptr_t extra;
 } ENetAddress;
 
 /**
@@ -226,10 +230,10 @@ enum
    ENET_PEER_PACKET_LOSS_SCALE            = (1 << 16),
    ENET_PEER_PACKET_LOSS_INTERVAL         = 10000,
    ENET_PEER_WINDOW_SIZE_SCALE            = 64 * 1024,
-   ENET_PEER_TIMEOUT_LIMIT                = 32,
-   ENET_PEER_TIMEOUT_MINIMUM              = 5000,
-   ENET_PEER_TIMEOUT_MAXIMUM              = 30000,
-   ENET_PEER_PING_INTERVAL                = 500,
+   ENET_PEER_TIMEOUT_LIMIT                = 32 * 4,
+   ENET_PEER_TIMEOUT_MINIMUM              = 5000 * 4,
+   ENET_PEER_TIMEOUT_MAXIMUM              = 30000 * 4,
+   ENET_PEER_PING_INTERVAL                = 500 * 4,
    ENET_PEER_UNSEQUENCED_WINDOWS          = 64,
    ENET_PEER_UNSEQUENCED_WINDOW_SIZE      = 1024,
    ENET_PEER_FREE_UNSEQUENCED_WINDOWS     = 32,
@@ -338,7 +342,28 @@ typedef enet_uint32 (ENET_CALLBACK * ENetChecksumCallback) (const ENetBuffer * b
 
 /** Callback for intercepting received raw UDP packets. Should return 1 to intercept, 0 to ignore, or -1 to propagate an error. */
 typedef int (ENET_CALLBACK * ENetInterceptCallback) (struct _ENetHost * host, struct _ENetEvent * event);
- 
+
+typedef enum _ENetTransportType
+{
+   /** no event occurred within the specified time limit */
+   ENET_TRANSPORT_TYPE_NONE       = 0,
+   ENET_TRANSPORT_TYPE_SOCKET     = 1,
+   ENET_TRANSPORT_TYPE_CUSTOM     = 2,
+} ENetTransportType;
+
+typedef struct _ENetTransport
+{
+    ENetTransportType type;
+    void *context;
+    union {
+        ENetSocket socket;
+        void *nosocket;
+    } handle;
+
+    void (*send)();
+    void (*recv)();
+} ENetTransport;
+
 /** An ENet host for communicating with peers.
   *
   * No fields should be modified unless otherwise stated.
@@ -357,6 +382,7 @@ typedef int (ENET_CALLBACK * ENetInterceptCallback) (struct _ENetHost * host, st
   */
 typedef struct _ENetHost
 {
+   ENetTransport        transport;
    ENetSocket           socket;
    ENetAddress          address;                     /**< Internet address of the host */
    enet_uint32          incomingBandwidth;           /**< downstream bandwidth of the host */
